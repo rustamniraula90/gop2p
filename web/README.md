@@ -1,73 +1,48 @@
-# React + TypeScript + Vite
+# gop2p Web UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, responsive, and dark-themed web interface for the gop2p system, built with React and Vite.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React**: UI library.
+- **TypeScript**: Type-safe development.
+- **Tailwind CSS**: Utility-first styling with a custom dark theme.
+- **Vite**: Ultra-fast build tool and dev server.
+- **Lucide React**: For consistent and beautiful iconography.
+- **Framer Motion**: Smooth animations and transitions.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Real-time Updates**: Uses WebSockets to synchronize with the Go client backend.
+- **Peer Management**: Interactive list of discovered and connected peers.
+- **E2E Chat**: Immersive chat interface with glassmorphism design.
+- **File Sharing**: Integrated file viewer and sharing manager with real-time transfer progress.
+- **Responsive Design**: Optimized for various screen sizes.
 
-## Expanding the ESLint configuration
+## Communication with Backend
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+The frontend communicates with the Go client's `APIServer` via:
+- **WebSocket (`/ws`)**: For real-time event streaming (messages, peer updates, progress).
+- **REST API (`/api/*`)**: For state transitions and data fetching.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Development
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1.  Install dependencies:
+    ```bash
+    npm install
+    ```
+2.  Start the development server:
+    ```bash
+    npm run dev
+    ```
+    *Note: The frontend expects the Go client to be running on `:8081` to handle API requests.*
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Build
+
+The frontend is built and bundled into `web/dist`. This process is automated by the root `Makefile`.
+
+```bash
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+The resulting `dist` folder is then embedded into the Go client binary during the Go build process.
