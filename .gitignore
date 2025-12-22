@@ -1,0 +1,10 @@
+# Go
+bin/
+
+# Node / Vite
+web/node_modules/
+web/dist/
+
+# IDE / Editor
+.idea/
+.vscode/
