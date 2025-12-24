@@ -24,8 +24,6 @@ func handleRegister(conn *net.UDPConn, registry *Registry, remoteAddr *net.UDPAd
 			Type:    protocol.TypeRegisterAck,
 			Payload: map[string]interface{}{"status": "ok"},
 		})
-	} else {
-		log.Printf("Received heartbeat: %s (%s) at %s", p.Name, p.ID, remoteAddr)
 	}
 }
 
@@ -50,7 +48,7 @@ func handlePeerRequest(conn *net.UDPConn, registry *Registry, remoteAddr *net.UD
 	})
 }
 
-func handleConnectAccept(conn *net.UDPConn, registry *Registry, addr *net.UDPAddr, msg protocol.UDPMessage) {
+func handleConnectAccept(conn *net.UDPConn, registry *Registry, msg protocol.UDPMessage) {
 	bytes, _ := json.Marshal(msg.Payload)
 	var acc protocol.ConnectAccept
 	if err := json.Unmarshal(bytes, &acc); err != nil {
@@ -92,7 +90,7 @@ func handleConnectAccept(conn *net.UDPConn, registry *Registry, addr *net.UDPAdd
 	log.Printf("Handshake accepted: %s <-> %s", requester.Name, accepter.Name)
 }
 
-func handleConnectRequest(conn *net.UDPConn, registry *Registry, addr *net.UDPAddr, msg protocol.UDPMessage) {
+func handleConnectRequest(conn *net.UDPConn, registry *Registry, msg protocol.UDPMessage) {
 	bytes, _ := json.Marshal(msg.Payload)
 	var req protocol.ConnectRequest
 	if err := json.Unmarshal(bytes, &req); err != nil {

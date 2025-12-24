@@ -49,9 +49,9 @@ func handlePacket(conn *net.UDPConn, remoteAddr *net.UDPAddr, registry *Registry
 	case protocol.TypeListPeersRequest:
 		handlePeerRequest(conn, registry, remoteAddr)
 	case protocol.TypeConnectRequest:
-		handleConnectRequest(conn, registry, remoteAddr, msg)
+		handleConnectRequest(conn, registry, msg)
 	case protocol.TypeConnectAccept:
-		handleConnectAccept(conn, registry, remoteAddr, msg)
+		handleConnectAccept(conn, registry, msg)
 	}
 }
 

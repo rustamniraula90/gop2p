@@ -8,13 +8,11 @@ export function useWebsocket() {
 
     useEffect(() => {
         const connect = () => {
-            console.log("connecting to ws")
             let protocol = "ws"
             if (window.location.protocol === "https") {
                 protocol = "wss"
             }
             const ws = new WebSocket(`${protocol}://${window.location.host}/ws`)
-            console.log("created ws")
             // const ws = new WebSocket(`ws://localhost:8081/ws`);
 
 

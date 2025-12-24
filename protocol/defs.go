@@ -16,6 +16,9 @@ const (
 	TypeConnectAccept  PacketType = 0x06
 	TypeConnectForward PacketType = 0x07
 	TypePeerInfo       PacketType = 0x08
+
+	TypePunch    PacketType = 0x09
+	TypePunchAck PacketType = 0x10
 )
 
 type UDPMessage struct {

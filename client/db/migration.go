@@ -3,6 +3,7 @@ package db
 var migrationQueries = []string{
 	identityMigration,
 	serverConfigMigration,
+	peerMigration,
 }
 
 var identityMigration = `

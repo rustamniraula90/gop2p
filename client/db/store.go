@@ -87,12 +87,12 @@ type PeerEntity struct {
 	Name     string
 	IP       net.IP
 	Port     int
-	Status   int
+	State    int
 	LastUsed time.Time
 }
 
 func (s *Store) SavePeer(peer PeerEntity) error {
 	_, err := s.db.Exec(`INSERT OR REPLACE INTO peers (id, name, ip, port, state, last_used) 
-		VALUES (?, ?, ?, ?, ?, ?)`, peer.ID, peer.Name, peer.IP.String(), peer.Port, peer.Status, peer.LastUsed.Unix())
+		VALUES (?, ?, ?, ?, ?, ?)`, peer.ID, peer.Name, peer.IP.String(), peer.Port, peer.State, peer.LastUsed.Unix())
 	return err
 }

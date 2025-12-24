@@ -87,7 +87,7 @@ func (pm *P2PManager) handlePacket(packet PacketWrapper) {
 		pm.handleServerMessage(packet.Message)
 		return
 	}
-	pm.handlePeerMessage(packet.Message)
+	pm.handlePeerMessage(packet.RemoteAddr, packet.Message)
 }
 
 func (pm *P2PManager) handleServerMessage(msg protocol.UDPMessage) {
@@ -99,16 +99,54 @@ func (pm *P2PManager) handleServerMessage(msg protocol.UDPMessage) {
 	case protocol.TypeConnectForward:
 		pm.handleConnectForward(msg)
 	case protocol.TypePeerInfo:
-		pm.handlePeerInfo(msg, true)
+		pm.handlePeerInfo(msg)
 	}
 }
 
-func (pm *P2PManager) handlePeerMessage(msg protocol.UDPMessage) {
+func (pm *P2PManager) handlePeerMessage(remote *net.UDPAddr, msg protocol.UDPMessage) {
+	switch msg.Type {
+	case protocol.TypePunch, protocol.TypePunchAck:
+		pm.handlePunch(remote, msg)
+	}
+}
 
+func (pm *P2PManager) handlePunch(remote *net.UDPAddr, msg protocol.UDPMessage) {
+	bytes, _ := json.Marshal(msg.Payload)
+	var p map[string]string
+	json.Unmarshal(bytes, &p)
+	senderID := p["from"]
+	if senderID == "" {
+		return
+	}
+	peer, ok := pm.Peers[senderID]
+	if !ok {
+		return
+	}
+	peer.LastUsed = time.Now()
+	peer.State = StateConnected
+	peer.IP = remote.IP
+	peer.Port = remote.Port
+
+	if msg.Type == protocol.TypePunchAck {
+		log.Printf("Received PUNCH_ACK from %s. Connected!", senderID)
+		return
+	}
+	log.Printf("Received PUNCH from %s. Replying with ACK.", senderID)
+	err := pm.upd.Send(remote, protocol.UDPMessage{
+		Type: protocol.TypePunchAck,
+		Payload: map[string]string{
+			"from": pm.identity.ID,
+		},
+	})
+	if err != nil {
+		log.Printf("Failed to send PUNCH_ACK to %s. Error: %v", senderID, err)
+	}
+	if pm.OnPeerUpdate != nil {
+		pm.OnPeerUpdate(peer)
+	}
 }
 
 func (pm *P2PManager) sendHeartbeat() {
-	log.Printf("Sending heartbeat to %s", pm.ServerAddr)
 	payload := protocol.RegisterPayload{ID: pm.identity.ID, Name: pm.identity.Name}
 	err := pm.upd.Send(pm.ServerAddr, protocol.UDPMessage{
 		Type:    protocol.TypeHeartbeat,
@@ -131,7 +169,6 @@ func (pm *P2PManager) FetchPeers() {
 
 func (pm *P2PManager) handlePeersList(msg protocol.UDPMessage) {
 	bytes, _ := json.Marshal(msg.Payload)
-	log.Println("Received list of peers from server", string(bytes))
 
 	var resp protocol.ListPeersPayload
 	json.Unmarshal(bytes, &resp)
@@ -201,7 +238,7 @@ func (pm *P2PManager) RemovePeer(id string) {
 	delete(pm.Peers, id)
 }
 
-func (pm *P2PManager) handlePeerInfo(msg protocol.UDPMessage, isTarget bool) {
+func (pm *P2PManager) handlePeerInfo(msg protocol.UDPMessage) {
 	bytes, _ := json.Marshal(msg.Payload)
 	var p protocol.PeerInfoPayload
 	if err := json.Unmarshal(bytes, &p); err != nil {
@@ -209,7 +246,7 @@ func (pm *P2PManager) handlePeerInfo(msg protocol.UDPMessage, isTarget bool) {
 		return
 	}
 
-	log.Printf("Received Peer Info: %s (%s) at %s:%d. IsTarget=%v", p.Name, p.ID, p.IP, p.Port, isTarget)
+	log.Printf("Received Peer Info: %s (%s) at %s:%d.", p.Name, p.ID, p.IP, p.Port)
 
 	peer := &Peer{
 		ID:    p.ID,
@@ -223,6 +260,27 @@ func (pm *P2PManager) handlePeerInfo(msg protocol.UDPMessage, isTarget bool) {
 
 	if pm.OnPeerUpdate != nil {
 		pm.OnPeerUpdate(peer)
+	}
+
+	go pm.startPunching(peer)
+}
+
+func (pm *P2PManager) startPunching(peer *Peer) {
+	addr := &net.UDPAddr{IP: peer.IP, Port: peer.Port}
+	// send packet and pray
+	for i := 0; i < 10; i++ {
+		if pm.Peers[peer.ID].State == StateConnected {
+			return
+		}
+
+		log.Printf("Punching peer %s(%s) at %s", peer.Name, peer.ID, addr)
+		pm.upd.Send(addr, protocol.UDPMessage{
+			Type: protocol.TypePunch,
+			Payload: map[string]string{
+				"from": pm.identity.ID,
+			},
+		})
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -247,6 +305,7 @@ func (pm *P2PManager) SavePeers() {
 			Name:     peer.Name,
 			IP:       peer.IP,
 			Port:     peer.Port,
+			State:    int(peer.State),
 			LastUsed: peer.LastUsed,
 		}
 		if err := pm.Store.SavePeer(np); err != nil {
