@@ -14,6 +14,8 @@ const (
 
 	TypeConnectRequest PacketType = 0x05
 	TypeConnectAccept  PacketType = 0x06
+	TypeConnectForward PacketType = 0x07
+	TypePeerInfo       PacketType = 0x08
 )
 
 type UDPMessage struct {
@@ -45,4 +47,13 @@ type ConnectRequest struct {
 type ConnectAccept struct {
 	RequesterID string `json:"requester_id"`
 	SenderID    string `json:"sender_id"`
+}
+
+type ListPeersResponse struct {
+	Peers []PeerInfoPayload `json:"peers"`
+}
+
+type ConnectForward struct {
+	RequesterID   string `json:"requester_id"`
+	RequesterName string `json:"requester_name"`
 }

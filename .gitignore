@@ -8,3 +8,6 @@ web/dist/
 # IDE / Editor
 .idea/
 .vscode/
+
+# db
+gop2p.db

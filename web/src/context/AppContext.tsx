@@ -4,11 +4,17 @@ import type {AppState, Peer} from "../types";
 type Action =
     | { type: 'SET_IDENTITY'; payload: { id: string; name: string } }
     | { type: 'UPDATE_PEER'; payload: Peer }
+    | { type: 'SET_PEERS'; payload: Peer[] }
+    | { type: 'ADD_CONNECTION_REQUEST', payload: { id: string, name: string } }
+    | { type: 'REMOVE_CONNECTION_REQUEST', payload: string }
+    | { type: 'SET_CURRENT_PEER'; payload: string | null }
 
 const initialState: AppState = {
     id: '',
     name: 'Loading...',
-    peers: {}
+    peers: {},
+    connectionRequests: [],
+    currentPeerId: null
 }
 
 function appReducer(state: AppState, action: Action) {
@@ -17,6 +23,17 @@ function appReducer(state: AppState, action: Action) {
             return {...state, id: action.payload.id, name: action.payload.name}
         case "UPDATE_PEER":
             return {...state, peers: {...state.peers, [action.payload.id]: action.payload}}
+        case "SET_PEERS": {
+            const peers: Record<string, Peer> = {};
+            action.payload.forEach(p => peers[p.id] = p);
+            return {...state, peers}
+        }
+        case "SET_CURRENT_PEER":
+            return {...state, currentPeerId: action.payload}
+        case 'ADD_CONNECTION_REQUEST':
+            return {...state, connectionRequests: [...state.connectionRequests, action.payload]}
+        case 'REMOVE_CONNECTION_REQUEST':
+            return {...state, connectionRequests: state.connectionRequests.filter(r => r.id !== action.payload)}
         default:
             return state
     }

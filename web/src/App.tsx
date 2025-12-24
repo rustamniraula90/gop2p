@@ -1,7 +1,7 @@
 import './App.css'
-import Layout from "./components/Layout.tsx";
-import {useWebsocket} from "./hooks/useWebsocket.ts";
-import {AppProvider} from "./context/AppContext.tsx";
+import Layout from "./components/Layout";
+import {useWebsocket} from "./hooks/useWebsocket";
+import {AppProvider} from "./context/AppContext";
 
 function AppContent() {
     useWebsocket();

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/rustamniraula90/gop2p/client/db"
 	"github.com/rustamniraula90/gop2p/web"
 )
 
@@ -24,6 +25,7 @@ func NewAPIServer(p2p *P2PManager, port int) *APIServer {
 		clients: make(map[*websocket.Conn]bool),
 	}
 	p2p.OnPeerUpdate = api.BroadcastPeerUpdate
+	p2p.OnConnectionRequest = api.BroadcastConnectionRequest
 
 	return api
 }
@@ -32,7 +34,11 @@ func (api *APIServer) Start() {
 	http.Handle("/", http.FileServer(http.FS(web.GetAssets())))
 	http.HandleFunc("/ws", api.handleWS)
 	http.HandleFunc("/api/identity", api.handleGetIdentity)
+	http.HandleFunc("/api/server/config", api.handleServerConfigSave)
+	http.HandleFunc("/api/server/config/list", api.handleServerConfigList)
+	http.HandleFunc("/api/server/config/current", api.handleCurrentServerConfig)
 	http.HandleFunc("/api/peers", api.handleFetchPeers)
+	http.HandleFunc("/api/peers/remove", api.handleRemovePeer)
 	http.HandleFunc("/api/connect/request", api.handleConnectRequest)
 	http.HandleFunc("/api/connect/accept", api.handleConnectAccept)
 
@@ -57,7 +63,18 @@ func (api *APIServer) BroadcastPeerUpdate(peer *Peer) {
 			"id":        peer.ID,
 			"name":      peer.Name,
 			"status":    peer.State,
-			"last_seen": peer.LastSeen,
+			"last_used": peer.LastUsed,
+		},
+	}
+	api.broadcast(msg)
+}
+
+func (api *APIServer) BroadcastConnectionRequest(id string, name string) {
+	msg := map[string]interface{}{
+		"type": "connection_request",
+		"data": map[string]interface{}{
+			"id":   id,
+			"name": name,
 		},
 	}
 	api.broadcast(msg)
@@ -117,7 +134,7 @@ func (api *APIServer) sendPeers(ws *websocket.Conn) {
 			"id":        p.ID,
 			"name":      p.Name,
 			"status":    p.State,
-			"last_seen": p.LastSeen,
+			"last_used": p.LastUsed,
 		})
 	}
 
@@ -142,5 +159,52 @@ func (api *APIServer) handleConnectAccept(w http.ResponseWriter, r *http.Request
 	}
 	json.NewDecoder(r.Body).Decode(&req)
 	api.p2p.AcceptConnection(req.RequesterID)
+	w.WriteHeader(200)
+}
+
+func (api *APIServer) handleServerConfigSave(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ServerAddr string `json:"server_addr"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+
+	if err := api.p2p.Store.SaveServerConfig(req.ServerAddr); err != nil {
+		log.Printf("Error saving config: %v", err)
+	}
+
+	err := api.p2p.SetServer(req.ServerAddr)
+	if err != nil {
+		log.Printf("Error saving config: %v", err)
+	}
+	w.WriteHeader(200)
+
+}
+
+func (api *APIServer) handleServerConfigList(w http.ResponseWriter, r *http.Request) {
+	configs, err := api.p2p.Store.GetServerConfigs()
+	if err != nil {
+		log.Printf("Error saving config: %v", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	json.NewEncoder(w).Encode(configs)
+}
+
+func (api *APIServer) handleCurrentServerConfig(writer http.ResponseWriter, request *http.Request) {
+	config := db.ServerConfig{
+		Address:  api.p2p.ServerAddr.String(),
+		LastUsed: time.Now(),
+	}
+	json.NewEncoder(writer).Encode(config)
+}
+
+func (api *APIServer) handleRemovePeer(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), 400)
+	}
+	api.p2p.RemovePeer(req.ID)
 	w.WriteHeader(200)
 }

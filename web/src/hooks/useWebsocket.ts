@@ -8,11 +8,13 @@ export function useWebsocket() {
 
     useEffect(() => {
         const connect = () => {
+            console.log("connecting to ws")
             let protocol = "ws"
             if (window.location.protocol === "https") {
                 protocol = "wss"
             }
             const ws = new WebSocket(`${protocol}://${window.location.host}/ws`)
+            console.log("created ws")
             // const ws = new WebSocket(`ws://localhost:8081/ws`);
 
 
@@ -31,7 +33,7 @@ export function useWebsocket() {
 
             ws.onclose = () => {
                 console.log("websocket disconnected, reconnecting...")
-                setTimeout(connect, 5000)
+                setTimeout(connect, 3000)
             }
         }
 
@@ -48,7 +50,18 @@ export function useWebsocket() {
         console.log("Received message:", msg)
         switch (msg.type) {
             case 'identity':
-                dispatch({type: "SET_IDENTITY", payload: msg.data})
+                dispatch({type: 'SET_IDENTITY', payload: msg.data})
+                break
+            case 'peers':
+                dispatch({type: 'SET_PEERS', payload: msg.data});
+                break;
+            case 'peer_update':
+                dispatch({type: 'UPDATE_PEER', payload: msg.data});
+                break;
+            case 'connection_request':
+                dispatch({type: 'ADD_CONNECTION_REQUEST', payload: {id: msg.data.id, name: msg.data.name}})
+                break;
         }
     }
+    return null;
 }
