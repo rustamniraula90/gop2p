@@ -1,7 +1,6 @@
 import type {Peer} from "../../types";
 import {useApp} from "../../context/AppContext.tsx";
 import {useState} from "react";
-import {getStatusText} from "../../utils/formatters.ts";
 
 interface Props {
     peer: Peer;
@@ -43,33 +42,39 @@ export default function PeerItem({peer}: Props) {
     return (
         <li
             onClick={selectPeer}
-            className={`p-3 bg-bg border border-border rounded-lg cursor-pointer transition hiver:border-primary flex justify-between items-center ${isActive ? 'border-primary bg-sidebar' : ''}`}
+            className={`p-3 rounded border transition-colors group relative cursor-pointer ${isActive
+                ? 'border-primary/50 bg-blue-50/50 dark:bg-blue-900/20'
+                : 'border-border-light dark:border-border-dark bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
         >
-            <div className='flex-1 min-w-0'>
-                <div className="flex items-center gap-2">
-                    <span
-                        className="font-medium truncate text-gray-200 group-hover:text-white transition">{peer.name || peer.id.slice(0, 8)}</span>
-                    <span
-                        className='absolute left-full ml-2 px-1.5 py-0.5 bg-sidebar-dark border border-border text-[10px] rounded opacity-0 group-hover/status:opacity-100 transition whitespace-nowrap z-10 pointer-events-none lowercase'>
-                        {getStatusText(peer.status)}
-                    </span>
-                </div>
-                <small className="text-[10px] text-gray-500 font-mono">{lastUsed}</small>
+            <div className="flex justify-between items-start mb-1">
+                <h4 className={`font-semibold transition-colors ${isActive ? 'text-primary dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>
+                    {peer.name || peer.id.slice(0, 8)}
+                </h4>
+                {peer.status === 0 ? (
+                    <button
+                        onClick={requestConnect}
+                        disabled={requested}
+                        className={`text-xs px-3 py-1 rounded transition-colors ${requested
+                            ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-default'
+                            : 'bg-primary hover:bg-blue-600 text-white shadow-sm'
+                        }`}
+                    >
+                        {requested ? 'Requested' : 'Connect'}
+                    </button>
+                ) : (
+                    <button
+                        onClick={removePeer}
+                        className="text-xs text-red-500 border border-red-500/30 px-2 py-0.5 rounded hover:bg-red-500 hover:text-white transition-colors"
+                    >
+                        Remove
+                    </button>
+                )}
             </div>
-            {peer.status == 0 ? (
-                <button
-                    onClick={requestConnect}
-                    disabled={requested}
-                    className={`ml-2 px-2 text-xs text-white rounded transition ${requested ? 'bg-gray-600 cursor-default' : 'bg-primary hover:bg-primary-hover'}`}
-                >
-                    {requested ? 'Requested' : 'Connect'}
-                </button>
-            ) : (
-                <button onClick={removePeer}
-                        className='ml-2 px-2 py-1 text-xs border border-red-500 text-red-500 hover:bg-red-500 hover:text-white rounded transition'>
-                    Remove
-                </button>
-            )}
+            <div className={`flex items-center text-xs ${peer.status === 2 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                <span className={`w-2 h-2 rounded-full mr-2 ${peer.status === 2 ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                {lastUsed}
+            </div>
         </li>
     )
 }

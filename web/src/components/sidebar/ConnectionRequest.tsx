@@ -14,11 +14,10 @@ export default function ConnectionRequest() {
     }
 
     return (
-        <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Incoming Requests</h3>
+        <div className="px-6 py-4 border-b border-border-light dark:border-border-dark">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Active Peers</h3>
             {state.connectionRequests.map(req => (
-                <div key={req.id}
-                     className="p-3 bg-primary/10 border border-primary rounded-lg flex justify-between items-center">
+                <div key={req.id} className="p-3 bg-primary/10 border border-primary rounded-lg flex justify-between items-center">
                     <span className="text-sm"><strong>{req.name}</strong> wants to connect</span>
                     <button
                         onClick={() => acceptRequest(req.id)}

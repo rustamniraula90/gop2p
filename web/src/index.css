@@ -1,38 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 @import "tailwindcss";
 
 @theme {
-    --color-primary: #3b82f6;
-    --color-primary-hover: #2563eb;
-    --color-sidebar: #1e293b;
-    --color-sidebar-dark: #0f172a;
-    --color-bg: #0f172a;
-    --color-border: #334155;
-    --color-accent: #3b82f6;
+    --color-primary: #3B82F6;
+    --color-primary-hover: #2563EB;
+
+    --color-background-light: #F3F4F6;
+    --color-background-dark: #0F172A;
+
+    --color-sidebar-light: #FFFFFF;
+    --color-sidebar-dark: #1E293B;
+
+    --color-panel-light: #FFFFFF;
+    --color-panel-dark: #1E293B;
+
+    --color-border-light: #E5E7EB;
+    --color-border-dark: #334155;
 
     --animate-pulse-slow: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @layer base {
     body {
-        @apply bg-bg text-gray-300;
+        @apply bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200 transition-colors duration-200 font-sans;
+        font-family: 'Inter', sans-serif;
     }
+
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #4B5563;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #6B7280;
+    }
+}
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    font-size: inherit !important;
+    /* Force respect for text-sm, etc. */
+    width: 1em;
+    height: 1em;
+    vertical-align: middle;
 }
 
 @layer utilities {
-    .scrollbar-thin::-webkit-scrollbar {
-        width: 6px;
+    .chunk-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1px;
     }
 
-    .scrollbar-thin::-webkit-scrollbar-track {
-        @apply bg-gray-800;
+    .chunk {
+        width: 8px;
+        height: 8px;
+        border-radius: 1px;
     }
-
-    .scrollbar-thin::-webkit-scrollbar-thumb {
-        @apply bg-gray-600 rounded-full;
-    }
-
-    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-        @apply bg-gray-500;
-    }
-
 }
+
+/* Enable class-based dark mode in Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
