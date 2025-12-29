@@ -4,7 +4,11 @@ export interface AppState {
     peers: Record<string, Peer>
     connectionRequests: Array<{ id: string, name: string }>
     currentPeerId: string | null
+    currentView: ViewType
+    messages: Record<string, Message[]>
 }
+
+export type ViewType = 'files' | 'downloads' | 'uploads' | 'chat';
 
 export interface Peer {
     id: string
@@ -16,4 +20,11 @@ export interface Peer {
 export interface WSMessage {
     type: string
     data: any
+}
+
+export interface Message {
+    sender_id: string;
+    text: string;
+    timestamp: string;
+    sent?: boolean;
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/rustamniraula90/gop2p/client/db"
@@ -17,7 +18,7 @@ func main() {
 
 	flag.Parse()
 
-	store, err := db.NewStore("gop2p.db")
+	store, err := db.NewStore(fmt.Sprintf("%s_gop2p.db", *name))
 	if err != nil {
 		log.Fatal("Failed to init database", err)
 	}
@@ -32,6 +33,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create UDP manager: ", err)
 	}
+	log.Printf("Listening on UDP %s", um.conn.LocalAddr())
 
 	p2pm, err := NewP2PManager(identity, um, store, *serverAddr)
 	if err != nil {

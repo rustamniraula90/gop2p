@@ -1,24 +1,31 @@
 import {createContext, type Dispatch, type ReactNode, useContext, useReducer} from "react";
-import type {AppState, Peer} from "../types";
+import type {AppState, Message, Peer, ViewType} from "../types";
 
 type Action =
+    | { type: 'SET_VIEW'; payload: ViewType }
     | { type: 'SET_IDENTITY'; payload: { id: string; name: string } }
     | { type: 'UPDATE_PEER'; payload: Peer }
     | { type: 'SET_PEERS'; payload: Peer[] }
     | { type: 'ADD_CONNECTION_REQUEST', payload: { id: string, name: string } }
     | { type: 'REMOVE_CONNECTION_REQUEST', payload: string }
     | { type: 'SET_CURRENT_PEER'; payload: string | null }
+    | { type: 'SET_MESSAGES'; payload: { peerId: string, messages: Message[] } }
+    | { type: 'ADD_MESSAGES'; payload: { peerId: string, message: Message } }
 
 const initialState: AppState = {
     id: '',
     name: 'Loading...',
     peers: {},
     connectionRequests: [],
-    currentPeerId: null
+    currentPeerId: null,
+    currentView: 'chat',
+    messages: {}
 }
 
 function appReducer(state: AppState, action: Action) {
     switch (action.type) {
+        case "SET_VIEW":
+            return {...state, currentView: action.payload};
         case "SET_IDENTITY":
             return {...state, id: action.payload.id, name: action.payload.name}
         case "UPDATE_PEER":
@@ -34,6 +41,16 @@ function appReducer(state: AppState, action: Action) {
             return {...state, connectionRequests: [...state.connectionRequests, action.payload]}
         case 'REMOVE_CONNECTION_REQUEST':
             return {...state, connectionRequests: state.connectionRequests.filter(r => r.id !== action.payload)}
+        case 'SET_MESSAGES':
+            return {...state, messages: {...state.messages, [action.payload.peerId]: action.payload.messages}}
+        case 'ADD_MESSAGES':
+            return {
+                ...state,
+                messages: {
+                    ...state.messages,
+                    [action.payload.peerId]: [...(state.messages[action.payload.peerId] || []), action.payload.message]
+                }
+            }
         default:
             return state
     }

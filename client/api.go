@@ -26,6 +26,9 @@ func NewAPIServer(p2p *P2PManager, port int) *APIServer {
 	}
 	p2p.OnPeerUpdate = api.BroadcastPeerUpdate
 	p2p.OnConnectionRequest = api.BroadcastConnectionRequest
+	p2p.OnMessage = func(senderID, text string) {
+		api.BroadcastMessage(senderID, text, "")
+	}
 
 	return api
 }
@@ -41,7 +44,10 @@ func (api *APIServer) Start() {
 	http.HandleFunc("/api/peers/remove", api.handleRemovePeer)
 	http.HandleFunc("/api/connect/request", api.handleConnectRequest)
 	http.HandleFunc("/api/connect/accept", api.handleConnectAccept)
+	http.HandleFunc("/api/messages", api.handleGetMessages)
+	http.HandleFunc("/api/message", api.handleSendMessage)
 
+	log.Printf("UI accessible at http://localhost%s", api.address)
 	if err := http.ListenAndServe(api.address, nil); err != nil {
 		log.Fatal("Failed to start API server", err)
 	}
@@ -75,6 +81,19 @@ func (api *APIServer) BroadcastConnectionRequest(id string, name string) {
 		"data": map[string]interface{}{
 			"id":   id,
 			"name": name,
+		},
+	}
+	api.broadcast(msg)
+}
+
+func (api *APIServer) BroadcastMessage(senderID, text, receiverID string) {
+	msg := map[string]interface{}{
+		"type": "message",
+		"data": map[string]string{
+			"sender_id":   senderID,
+			"receiver_id": receiverID,
+			"text":        text,
+			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 		},
 	}
 	api.broadcast(msg)
@@ -207,4 +226,33 @@ func (api *APIServer) handleRemovePeer(w http.ResponseWriter, r *http.Request) {
 	}
 	api.p2p.RemovePeer(req.ID)
 	w.WriteHeader(200)
+}
+
+func (api *APIServer) handleSendMessage(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TargetID string `json:"target_id"`
+		Text     string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	api.p2p.SendMessage(req.TargetID, req.Text)
+	api.BroadcastMessage("me", req.Text, req.TargetID)
+	w.WriteHeader(200)
+
+}
+
+func (api *APIServer) handleGetMessages(w http.ResponseWriter, r *http.Request) {
+	peerID := r.URL.Query().Get("peer_id")
+	if peerID == "" {
+		http.Error(w, "peer_id required", 400)
+		return
+	}
+	msgs, err := api.p2p.Store.LoadMessageByPeerID(peerID)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	json.NewEncoder(w).Encode(msgs)
 }

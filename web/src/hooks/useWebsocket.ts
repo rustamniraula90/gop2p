@@ -59,6 +59,20 @@ export function useWebsocket() {
             case 'connection_request':
                 dispatch({type: 'ADD_CONNECTION_REQUEST', payload: {id: msg.data.id, name: msg.data.name}})
                 break;
+            case 'message':
+                const peerId = msg.data.sender_id === 'me' ? msg.data.receiver_id : msg.data.sender_id;
+                dispatch({
+                    type: 'ADD_MESSAGES',
+                    payload: {
+                        peerId,
+                        message: {
+                            sender_id: msg.data.sender_id,
+                            text: msg.data.text,
+                            timestamp: msg.data.timestamp,
+                            sent: msg.data.sender_id === 'me',
+                        }
+                    }
+                })
         }
     }
     return null;

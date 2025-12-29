@@ -4,6 +4,7 @@ var migrationQueries = []string{
 	identityMigration,
 	serverConfigMigration,
 	peerMigration,
+	messageMigration,
 }
 
 var identityMigration = `
@@ -28,4 +29,15 @@ var peerMigration = `
 		state INTEGER,
 		last_used INTEGER
 	)
+`
+
+var messageMigration = `
+	CREATE TABLE IF NOT EXISTS messages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		peer_id TEXT,
+		sender_id TEXT,
+		text TEXT,
+		timestamp INTEGER,
+		read INTEGER DEFAULT 0
+	);
 `

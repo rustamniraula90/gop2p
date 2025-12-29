@@ -7,6 +7,17 @@ import PeerList from "./PeerList.tsx";
 export default function Sidebar() {
     const {state} = useApp();
     const [searchTerm, setSearchTerm] = useState('')
+    const [copied, setCopied] = useState(false)
+
+
+
+    const copyId = () => {
+        if (!state.id) return;
+        navigator.clipboard.writeText(state.id)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+    }
+
     return (
         <aside className="w-80 bg-sidebar-light dark:bg-sidebar-dark border-r border-border-light dark:border-border-dark flex flex-col flex-shrink-0 h-screen overflow-y-auto z-10 transition-colors duration-200">
             <div className="p-6 pb-4">
@@ -23,14 +34,10 @@ export default function Sidebar() {
                         {state.id || 'Loading...'}
                     </div>
                     <button
-                        onClick={() => {
-                            if (state.id) {
-                                navigator.clipboard.writeText(state.id);
-                            }
-                        }}
+                        onClick={copyId}
                         className="text-xs border border-border-light dark:border-border-dark px-2 py-2 rounded bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap"
                     >
-                        Copy ID
+                        {copied ? 'Copied' : 'Copy ID'}
                     </button>
                 </div>
             </div>

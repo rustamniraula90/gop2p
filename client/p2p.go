@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -29,7 +30,7 @@ type Peer struct {
 
 type P2PManager struct {
 	identity   *Identity
-	upd        *UDPManager
+	udp        *UDPManager
 	ServerAddr *net.UDPAddr
 	Store      *db.Store
 	Peers      map[string]*Peer
@@ -46,7 +47,7 @@ func NewP2PManager(identity *Identity, udpManager *UDPManager, store *db.Store, 
 	}
 	return &P2PManager{
 		identity:   identity,
-		upd:        udpManager,
+		udp:        udpManager,
 		ServerAddr: sAddr,
 		Store:      store,
 		Peers:      make(map[string]*Peer),
@@ -63,7 +64,7 @@ func (pm *P2PManager) Start() {
 	}()
 
 	go func() {
-		for packet := range pm.upd.Incoming {
+		for packet := range pm.udp.Incoming {
 			pm.handlePacket(packet)
 		}
 	}()
@@ -73,7 +74,7 @@ func (pm *P2PManager) Start() {
 func (pm *P2PManager) sendRegister() {
 	log.Printf("Sending register to %s", pm.ServerAddr)
 	payload := protocol.RegisterPayload{ID: pm.identity.ID, Name: pm.identity.Name}
-	err := pm.upd.Send(pm.ServerAddr, protocol.UDPMessage{
+	err := pm.udp.Send(pm.ServerAddr, protocol.UDPMessage{
 		Type:    protocol.TypeRegister,
 		Payload: payload,
 	})
@@ -107,6 +108,9 @@ func (pm *P2PManager) handlePeerMessage(remote *net.UDPAddr, msg protocol.UDPMes
 	switch msg.Type {
 	case protocol.TypePunch, protocol.TypePunchAck:
 		pm.handlePunch(remote, msg)
+	case protocol.TypeChat:
+		pm.handleChatMessage(msg)
+
 	}
 }
 
@@ -130,17 +134,19 @@ func (pm *P2PManager) handlePunch(remote *net.UDPAddr, msg protocol.UDPMessage) 
 	if msg.Type == protocol.TypePunchAck {
 		log.Printf("Received PUNCH_ACK from %s. Connected!", senderID)
 		return
+	} else {
+		log.Printf("Received PUNCH from %s. Replying with ACK.", senderID)
+		err := pm.udp.Send(remote, protocol.UDPMessage{
+			Type: protocol.TypePunchAck,
+			Payload: map[string]string{
+				"from": pm.identity.ID,
+			},
+		})
+		if err != nil {
+			log.Printf("Failed to send PUNCH_ACK to %s. Error: %v", senderID, err)
+		}
 	}
-	log.Printf("Received PUNCH from %s. Replying with ACK.", senderID)
-	err := pm.upd.Send(remote, protocol.UDPMessage{
-		Type: protocol.TypePunchAck,
-		Payload: map[string]string{
-			"from": pm.identity.ID,
-		},
-	})
-	if err != nil {
-		log.Printf("Failed to send PUNCH_ACK to %s. Error: %v", senderID, err)
-	}
+
 	if pm.OnPeerUpdate != nil {
 		pm.OnPeerUpdate(peer)
 	}
@@ -148,7 +154,7 @@ func (pm *P2PManager) handlePunch(remote *net.UDPAddr, msg protocol.UDPMessage) 
 
 func (pm *P2PManager) sendHeartbeat() {
 	payload := protocol.RegisterPayload{ID: pm.identity.ID, Name: pm.identity.Name}
-	err := pm.upd.Send(pm.ServerAddr, protocol.UDPMessage{
+	err := pm.udp.Send(pm.ServerAddr, protocol.UDPMessage{
 		Type:    protocol.TypeHeartbeat,
 		Payload: payload,
 	})
@@ -158,7 +164,7 @@ func (pm *P2PManager) sendHeartbeat() {
 }
 
 func (pm *P2PManager) FetchPeers() {
-	err := pm.upd.Send(pm.ServerAddr, protocol.UDPMessage{
+	err := pm.udp.Send(pm.ServerAddr, protocol.UDPMessage{
 		Type:    protocol.TypeListPeersRequest,
 		Payload: nil,
 	})
@@ -202,7 +208,7 @@ func (pm *P2PManager) RequestConnection(targetID string) {
 		SenderID: pm.identity.ID,
 	}
 
-	if err := pm.upd.Send(pm.ServerAddr, protocol.UDPMessage{
+	if err := pm.udp.Send(pm.ServerAddr, protocol.UDPMessage{
 		Type:    protocol.TypeConnectRequest,
 		Payload: &req,
 	}); err != nil {
@@ -215,7 +221,7 @@ func (pm *P2PManager) AcceptConnection(requesterID string) {
 		RequesterID: requesterID,
 		SenderID:    pm.identity.ID,
 	}
-	if err := pm.upd.Send(pm.ServerAddr, protocol.UDPMessage{
+	if err := pm.udp.Send(pm.ServerAddr, protocol.UDPMessage{
 		Type:    protocol.TypeConnectAccept,
 		Payload: &req,
 	}); err != nil {
@@ -274,7 +280,7 @@ func (pm *P2PManager) startPunching(peer *Peer) {
 		}
 
 		log.Printf("Punching peer %s(%s) at %s", peer.Name, peer.ID, addr)
-		pm.upd.Send(addr, protocol.UDPMessage{
+		pm.udp.Send(addr, protocol.UDPMessage{
 			Type: protocol.TypePunch,
 			Payload: map[string]string{
 				"from": pm.identity.ID,
@@ -312,4 +318,64 @@ func (pm *P2PManager) SavePeers() {
 			log.Println("Failed to save peer", "id", peer.ID, err)
 		}
 	}
+}
+
+func (pm *P2PManager) handleChatMessage(msg protocol.UDPMessage) {
+	bytes, _ := json.Marshal(msg.Payload)
+	var p protocol.ChatMessage
+	json.Unmarshal(bytes, &p)
+
+	if p.SenderID == "" {
+		return
+	}
+	peer, ok := pm.Peers[p.SenderID]
+	if !ok {
+		return
+	}
+	log.Printf("Chat from %s: %s", peer.Name, p.Text)
+
+	if err := pm.Store.SaveMessage(peer.ID, peer.ID, p.Text, p.Timestamp); err != nil {
+		log.Printf("Error saving message: %v", err)
+	}
+
+	if pm.OnMessage != nil {
+		pm.OnMessage(peer.ID, p.Text)
+	}
+}
+
+func (pm *P2PManager) SendMessage(targetID string, text string) {
+	peer, ok := pm.Peers[targetID]
+	if !ok {
+		log.Printf("Cannot send to %s: Peer not found", targetID)
+		return
+	}
+
+	if peer.State != StateConnected {
+		log.Printf("Cannot send to %s: Peer state is %v (not Connected)", targetID, peer.State)
+		return
+	}
+
+	addr := &net.UDPAddr{IP: peer.IP, Port: peer.Port}
+	ts := time.Now().Unix()
+	msg := protocol.ChatMessage{
+		ID:        fmt.Sprintf("%d", time.Now().UnixNano()), // simple ID
+		Timestamp: ts,
+		SenderID:  pm.identity.ID,
+		Text:      text,
+	}
+
+	err := pm.udp.Send(addr, protocol.UDPMessage{
+		Type:    protocol.TypeChat,
+		Payload: msg,
+	})
+	if err != nil {
+		log.Println("Failed to send chat message", err)
+		return
+	}
+
+	// Save my own message
+	if err := pm.Store.SaveMessage(targetID, "me", text, ts); err != nil {
+		log.Printf("Error saving sent message: %v", err)
+	}
+
 }

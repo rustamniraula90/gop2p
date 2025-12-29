@@ -11,14 +11,15 @@ const (
 
 	TypeListPeersRequest  PacketType = 0x04
 	TypeListPeersResponse PacketType = 0x04
-
-	TypeConnectRequest PacketType = 0x05
-	TypeConnectAccept  PacketType = 0x06
-	TypeConnectForward PacketType = 0x07
-	TypePeerInfo       PacketType = 0x08
+	TypeConnectRequest    PacketType = 0x05
+	TypeConnectAccept     PacketType = 0x06
+	TypeConnectForward    PacketType = 0x07
+	TypePeerInfo          PacketType = 0x08
 
 	TypePunch    PacketType = 0x09
 	TypePunchAck PacketType = 0x10
+
+	TypeChat PacketType = 0x11
 )
 
 type UDPMessage struct {
@@ -59,4 +60,11 @@ type ListPeersResponse struct {
 type ConnectForward struct {
 	RequesterID   string `json:"requester_id"`
 	RequesterName string `json:"requester_name"`
+}
+
+type ChatMessage struct {
+	ID        string `json:"id"`
+	Timestamp int64  `json:"timestamp"`
+	SenderID  string `json:"sender_id"`
+	Text      string `json:"text"`
 }
