@@ -73,6 +73,11 @@ export function useWebsocket() {
                         }
                     }
                 })
+                break;
+            case 'file_list':
+                dispatch({type: 'SET_FILES', payload: {peerId: msg.data.peer_id, files: msg.data.files}})
+                break;
+
         }
     }
     return null;

@@ -1,5 +1,5 @@
 import {createContext, type Dispatch, type ReactNode, useContext, useReducer} from "react";
-import type {AppState, Message, Peer, ViewType} from "../types";
+import type {AppState, FileInfo, Message, Peer, ViewType} from "../types";
 
 type Action =
     | { type: 'SET_VIEW'; payload: ViewType }
@@ -11,6 +11,7 @@ type Action =
     | { type: 'SET_CURRENT_PEER'; payload: string | null }
     | { type: 'SET_MESSAGES'; payload: { peerId: string, messages: Message[] } }
     | { type: 'ADD_MESSAGES'; payload: { peerId: string, message: Message } }
+    | { type: 'SET_FILES'; payload: { peerId: string, files: FileInfo[] } }
 
 const initialState: AppState = {
     id: '',
@@ -19,7 +20,8 @@ const initialState: AppState = {
     connectionRequests: [],
     currentPeerId: null,
     currentView: 'chat',
-    messages: {}
+    messages: {},
+    files: {}
 }
 
 function appReducer(state: AppState, action: Action) {
@@ -51,6 +53,8 @@ function appReducer(state: AppState, action: Action) {
                     [action.payload.peerId]: [...(state.messages[action.payload.peerId] || []), action.payload.message]
                 }
             }
+        case 'SET_FILES':
+            return {...state, files: {...state.files, [action.payload.peerId]: action.payload.files}}
         default:
             return state
     }

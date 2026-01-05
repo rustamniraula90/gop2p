@@ -6,6 +6,7 @@ export interface AppState {
     currentPeerId: string | null
     currentView: ViewType
     messages: Record<string, Message[]>
+    files: Record<string, FileInfo[]>;
 }
 
 export type ViewType = 'files' | 'downloads' | 'uploads' | 'chat';
@@ -27,4 +28,10 @@ export interface Message {
     text: string;
     timestamp: string;
     sent?: boolean;
+}
+
+export interface FileInfo {
+    name: string;
+    size: number;
+    type: 'file' | 'dir';
 }

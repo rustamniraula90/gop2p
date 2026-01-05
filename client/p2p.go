@@ -38,6 +38,7 @@ type P2PManager struct {
 	OnMessage           func(senderID, text string)
 	OnPeerUpdate        func(peer *Peer)
 	OnConnectionRequest func(requesterID, name string)
+	OnFileList          func(peerID string, files []protocol.FileInfo)
 }
 
 func NewP2PManager(identity *Identity, udpManager *UDPManager, store *db.Store, server string) (*P2PManager, error) {
@@ -110,7 +111,10 @@ func (pm *P2PManager) handlePeerMessage(remote *net.UDPAddr, msg protocol.UDPMes
 		pm.handlePunch(remote, msg)
 	case protocol.TypeChat:
 		pm.handleChatMessage(msg)
-
+	case protocol.TypeListFileRequest:
+		pm.handleFileListRequest(remote)
+	case protocol.TypeListFileResponse:
+		pm.handleFileListResponse(msg, remote)
 	}
 }
 
@@ -373,9 +377,68 @@ func (pm *P2PManager) SendMessage(targetID string, text string) {
 		return
 	}
 
-	// Save my own message
 	if err := pm.Store.SaveMessage(targetID, "me", text, ts); err != nil {
 		log.Printf("Error saving sent message: %v", err)
+	}
+
+}
+
+func (pm *P2PManager) RequestFileList(targetID string) {
+	peer, ok := pm.Peers[targetID]
+	if !ok || peer.State != StateConnected {
+		log.Printf("Cannot request files from %s: Peer not found", targetID)
+		return
+	}
+
+	addr := &net.UDPAddr{IP: peer.IP, Port: peer.Port}
+	pm.udp.Send(addr, protocol.UDPMessage{
+		Type:    protocol.TypeListFileRequest,
+		Payload: nil,
+	})
+}
+
+func (pm *P2PManager) handleFileListRequest(remote *net.UDPAddr) {
+	peer, ok := pm.findPeerByRemote(remote)
+	if !ok {
+		log.Printf("Cannot handle file list request from %s. Peer not found!", remote)
+		return
+	}
+	log.Printf("Handling file list request from %s", peer.Name)
+	files, err := ScanShareDir()
+	if err != nil {
+		log.Println("Failed to scan share directory", err)
+		return
+	}
+
+	pm.udp.Send(remote, protocol.UDPMessage{
+		Type:    protocol.TypeListFileResponse,
+		Payload: protocol.FileListPayload{Files: files},
+	})
+
+}
+
+func (pm *P2PManager) findPeerByRemote(remote *net.UDPAddr) (*Peer, bool) {
+	for _, p := range pm.Peers {
+		if p.IP.Equal(remote.IP) && p.Port == remote.Port {
+			return p, true
+		}
+	}
+	return nil, false
+}
+
+func (pm *P2PManager) handleFileListResponse(msg protocol.UDPMessage, remote *net.UDPAddr) {
+	peer, ok := pm.findPeerByRemote(remote)
+	if !ok {
+		log.Printf("Cannot handle file list response from %s. Peer not found!", remote)
+		return
+	}
+	bytes, _ := json.Marshal(msg.Payload)
+	var p protocol.FileListPayload
+	json.Unmarshal(bytes, &p)
+
+	log.Printf("Received File List from %s: %d files", peer.Name, len(p.Files))
+	if pm.OnFileList != nil {
+		pm.OnFileList(peer.ID, p.Files)
 	}
 
 }

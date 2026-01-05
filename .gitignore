@@ -11,3 +11,4 @@ web/dist/
 
 # db
 *.db
+data/

@@ -19,7 +19,9 @@ const (
 	TypePunch    PacketType = 0x09
 	TypePunchAck PacketType = 0x10
 
-	TypeChat PacketType = 0x11
+	TypeChat             PacketType = 0x11
+	TypeListFileRequest  PacketType = 0x12
+	TypeListFileResponse PacketType = 0x13
 )
 
 type UDPMessage struct {
@@ -67,4 +69,14 @@ type ChatMessage struct {
 	Timestamp int64  `json:"timestamp"`
 	SenderID  string `json:"sender_id"`
 	Text      string `json:"text"`
+}
+
+type FileInfo struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+	Type string `json:"type"` // "file" or "dir"
+}
+
+type FileListPayload struct {
+	Files []FileInfo `json:"files"`
 }

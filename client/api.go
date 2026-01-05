@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rustamniraula90/gop2p/client/db"
+	"github.com/rustamniraula90/gop2p/protocol"
 	"github.com/rustamniraula90/gop2p/web"
 )
 
@@ -29,6 +30,7 @@ func NewAPIServer(p2p *P2PManager, port int) *APIServer {
 	p2p.OnMessage = func(senderID, text string) {
 		api.BroadcastMessage(senderID, text, "")
 	}
+	p2p.OnFileList = api.BroadcastFileList
 
 	return api
 }
@@ -46,6 +48,7 @@ func (api *APIServer) Start() {
 	http.HandleFunc("/api/connect/accept", api.handleConnectAccept)
 	http.HandleFunc("/api/messages", api.handleGetMessages)
 	http.HandleFunc("/api/message", api.handleSendMessage)
+	http.HandleFunc("/api/files/request", api.handleRequestFiles)
 
 	log.Printf("UI accessible at http://localhost%s", api.address)
 	if err := http.ListenAndServe(api.address, nil); err != nil {
@@ -94,6 +97,17 @@ func (api *APIServer) BroadcastMessage(senderID, text, receiverID string) {
 			"receiver_id": receiverID,
 			"text":        text,
 			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+		},
+	}
+	api.broadcast(msg)
+}
+
+func (api *APIServer) BroadcastFileList(peerID string, files []protocol.FileInfo) {
+	msg := map[string]interface{}{
+		"type": "file_list",
+		"data": map[string]interface{}{
+			"peer_id": peerID,
+			"files":   files,
 		},
 	}
 	api.broadcast(msg)
@@ -255,4 +269,16 @@ func (api *APIServer) handleGetMessages(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	json.NewEncoder(w).Encode(msgs)
+}
+
+func (api *APIServer) handleRequestFiles(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PeerID string `json:"peer_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	api.p2p.RequestFileList(req.PeerID)
+	w.WriteHeader(200)
 }
