@@ -22,6 +22,10 @@ const (
 	TypeChat             PacketType = 0x11
 	TypeListFileRequest  PacketType = 0x12
 	TypeListFileResponse PacketType = 0x13
+	TypeDownloadRequest  PacketType = 0x14
+	TypeDownloadInfo     PacketType = 0x15
+	TypeChunkRequest     PacketType = 0x16
+	TypeChunkResponse    PacketType = 0x17
 )
 
 type UDPMessage struct {
@@ -79,4 +83,30 @@ type FileInfo struct {
 
 type FileListPayload struct {
 	Files []FileInfo `json:"files"`
+}
+
+type DownloadRequest struct {
+	FileName  string `json:"file_name"`
+	RequestID string `json:"request_id"` // Unique ID to track this download
+}
+
+type DownloadInfo struct {
+	RequestID      string `json:"request_id"`
+	FileName       string `json:"file_name"`
+	OriginalSize   int64  `json:"original_size"`
+	CompressedSize int64  `json:"compressed_size"`
+	ChunkCount     int    `json:"chunk_count"`
+	ChunkSize      int    `json:"chunk_size"`
+}
+
+type ChunkRequest struct {
+	RequestID  string `json:"request_id"`
+	ChunkIndex int    `json:"chunk_index"`
+}
+
+type ChunkResponse struct {
+	RequestID  string `json:"request_id"`
+	ChunkIndex int    `json:"chunk_index"`
+	ChunkData  []byte `json:"chunk_data"`
+	ChunkSHA   string `json:"chunk_sha"` // SHA256 hex string
 }

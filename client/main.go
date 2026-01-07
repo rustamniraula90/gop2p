@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/rustamniraula90/gop2p/client/db"
 )
@@ -20,10 +20,10 @@ func main() {
 	flag.Parse()
 
 	os.MkdirAll("data", 0755)
-	os.MkdirAll("data/download/.tmp", 0755)
-	os.MkdirAll("data/share/.tmp", 0755)
+	os.MkdirAll(filepath.Join("data", "download", ".tmp"), 0755)
+	os.MkdirAll(filepath.Join("data", "share", ".tmp"), 0755)
 
-	store, err := db.NewStore(fmt.Sprintf("data/.%s_gop2p.db", *name))
+	store, err := db.NewStore("data/.gop2p.db")
 	if err != nil {
 		log.Fatal("Failed to init database", err)
 	}

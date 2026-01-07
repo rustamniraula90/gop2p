@@ -1,5 +1,5 @@
 import {createContext, type Dispatch, type ReactNode, useContext, useReducer} from "react";
-import type {AppState, FileInfo, Message, Peer, ViewType} from "../types";
+import type {AppState, Download, FileInfo, Message, Peer, Upload, ViewType} from "../types";
 
 type Action =
     | { type: 'SET_VIEW'; payload: ViewType }
@@ -12,6 +12,10 @@ type Action =
     | { type: 'SET_MESSAGES'; payload: { peerId: string, messages: Message[] } }
     | { type: 'ADD_MESSAGES'; payload: { peerId: string, message: Message } }
     | { type: 'SET_FILES'; payload: { peerId: string, files: FileInfo[] } }
+    | { type: 'SET_DOWNLOADS'; payload: Download[] }
+    | { type: 'UPDATE_DOWNLOAD'; payload: any }
+    | { type: 'SET_UPLOADS'; payload: Upload[] }
+    | { type: 'UPDATE_UPLOAD'; payload: any }
 
 const initialState: AppState = {
     id: '',
@@ -21,7 +25,9 @@ const initialState: AppState = {
     currentPeerId: null,
     currentView: 'chat',
     messages: {},
-    files: {}
+    files: {},
+    downloads: {},
+    uploads: {},
 }
 
 function appReducer(state: AppState, action: Action) {
@@ -55,6 +61,58 @@ function appReducer(state: AppState, action: Action) {
             }
         case 'SET_FILES':
             return {...state, files: {...state.files, [action.payload.peerId]: action.payload.files}}
+        case 'SET_DOWNLOADS': {
+            const downloads: Record<string, Download> = {};
+            action.payload.forEach(d => downloads[d.request_id] = d);
+            return {...state, downloads};
+        }
+        case 'UPDATE_DOWNLOAD': {
+            const payload = action.payload;
+            const existing = state.downloads[payload.request_id];
+            let chunks = payload.chunks || existing?.chunks;
+            if (payload.last_chunk_idx !== undefined && payload.last_chunk_idx !== -1) {
+                if (chunks) {
+                    chunks = [...chunks];
+                    if (chunks[payload.last_chunk_idx]) {
+                        chunks[payload.last_chunk_idx] = {
+                            ...chunks[payload.last_chunk_idx],
+                            status: payload.last_chunk_stat,
+                        };
+                    }
+                }
+            }
+            return {
+                ...state,
+                downloads: {
+                    ...state.downloads,
+                    [payload.request_id]: {
+                        ...existing,
+                        ...payload,
+                        ...(chunks ? {chunks} : {}),
+                    },
+                },
+            };
+        }
+        case 'SET_UPLOADS': {
+            const uploads: Record<string, Upload> = {};
+            action.payload.forEach(u => uploads[u.request_id] = u);
+            return {...state, uploads};
+        }
+        case 'UPDATE_UPLOAD': {
+            const payload = action.payload;
+            const existing = state.uploads[payload.request_id];
+
+            return {
+                ...state,
+                uploads: {
+                    ...state.uploads,
+                    [payload.request_id]: {
+                        ...existing,
+                        ...payload,
+                    },
+                },
+            };
+        }
         default:
             return state
     }
@@ -67,7 +125,7 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined)
 
-export function AppProvider({children}: { children: ReactNode }) {
+export function AppProvider({children}: Readonly<{ children: ReactNode }>) {
     const [state, dispatch] = useReducer(appReducer, initialState)
     return (
         <AppContext.Provider value={{state, dispatch}}>

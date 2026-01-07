@@ -77,6 +77,12 @@ export function useWebsocket() {
             case 'file_list':
                 dispatch({type: 'SET_FILES', payload: {peerId: msg.data.peer_id, files: msg.data.files}})
                 break;
+            case 'download_progress':
+                dispatch({type: 'UPDATE_DOWNLOAD', payload: msg.data});
+                break;
+            case 'upload_progress':
+                dispatch({type: 'UPDATE_UPLOAD', payload: msg.data});
+                break;
 
         }
     }

@@ -31,6 +31,8 @@ func NewAPIServer(p2p *P2PManager, port int) *APIServer {
 		api.BroadcastMessage(senderID, text, "")
 	}
 	p2p.OnFileList = api.BroadcastFileList
+	p2p.Downloader.OnProgress = api.BroadcastDownloadProgress
+	p2p.Uploader.OnProgress = api.BroadcastUploadProgress
 
 	return api
 }
@@ -49,6 +51,11 @@ func (api *APIServer) Start() {
 	http.HandleFunc("/api/messages", api.handleGetMessages)
 	http.HandleFunc("/api/message", api.handleSendMessage)
 	http.HandleFunc("/api/files/request", api.handleRequestFiles)
+	http.HandleFunc("/api/download/start", api.handleStartFileDownload)
+	http.HandleFunc("/api/downloads", api.handleGetDownloads)
+	http.HandleFunc("/api/uploads", api.handleGetUploads)
+	http.HandleFunc("/api/downloads/clear", api.handleClearDownloads)
+	http.HandleFunc("/api/uploads/clear", api.handleClearUploads)
 
 	log.Printf("UI accessible at http://localhost%s", api.address)
 	if err := http.ListenAndServe(api.address, nil); err != nil {
@@ -108,6 +115,54 @@ func (api *APIServer) BroadcastFileList(peerID string, files []protocol.FileInfo
 		"data": map[string]interface{}{
 			"peer_id": peerID,
 			"files":   files,
+		},
+	}
+	api.broadcast(msg)
+}
+
+func (api *APIServer) BroadcastDownloadProgress(requestID string, status string, progress float64, chunkIndex int, chunkStatus string) {
+	download, exists := api.p2p.Downloader.GetDownload(requestID)
+	if !exists {
+		return
+	}
+	msg := map[string]interface{}{
+		"type": "download_progress",
+		"data": map[string]interface{}{
+			"request_id":      download.RequestID,
+			"peer_id":         download.PeerID,
+			"peer_name":       download.PeerName,
+			"file_name":       download.FileName,
+			"status":          download.Status,
+			"progress":        download.Progress,
+			"original_size":   download.OriginalSize,
+			"compressed_size": download.CompressedSize,
+			"chunk_count":     download.ChunkCount,
+			"last_chunk_idx":  chunkIndex,
+			"last_chunk_stat": chunkStatus,
+		},
+	}
+	api.broadcast(msg)
+}
+
+func (api *APIServer) BroadcastUploadProgress(requestID, status string, progress float64, chunkIndex int, chunkStatus string) {
+	upload, exists := api.p2p.Uploader.GetUpload(requestID)
+	if !exists {
+		return
+	}
+	msg := map[string]interface{}{
+		"type": "upload_progress",
+		"data": map[string]interface{}{
+			"request_id":      upload.RequestID,
+			"peer_id":         upload.PeerID,
+			"peer_name":       upload.PeerName,
+			"file_name":       upload.FileName,
+			"status":          upload.Status,
+			"progress":        upload.Progress,
+			"original_size":   upload.OriginalSize,
+			"compressed_size": upload.CompressedSize,
+			"chunk_count":     upload.ChunkCount,
+			"last_chunk_idx":  chunkIndex,
+			"last_chunk_stat": chunkStatus,
 		},
 	}
 	api.broadcast(msg)
@@ -280,5 +335,55 @@ func (api *APIServer) handleRequestFiles(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	api.p2p.RequestFileList(req.PeerID)
+	w.WriteHeader(200)
+}
+
+func (api *APIServer) handleStartFileDownload(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PeerID   string `json:"peer_id"`
+		FileName string `json:"file_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error unmarshaling download request: %v", err)
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if req.PeerID == "" || req.FileName == "" {
+		log.Printf("Invalid download request: PeerID or FileName is empty")
+		http.Error(w, "missing peer_id or file_name", 400)
+		return
+	}
+
+	requestID, err := api.p2p.RequestDownload(req.PeerID, req.FileName)
+	if err != nil {
+		log.Printf("RequestDownload failed: %v", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"request_id": requestID,
+	})
+
+}
+
+func (api *APIServer) handleGetDownloads(w http.ResponseWriter, r *http.Request) {
+	downloads := api.p2p.Downloader.GetAllDownloads()
+	json.NewEncoder(w).Encode(downloads)
+}
+
+func (api *APIServer) handleGetUploads(w http.ResponseWriter, r *http.Request) {
+	uploads := api.p2p.Uploader.GetAllUploads()
+	json.NewEncoder(w).Encode(uploads)
+}
+
+func (api *APIServer) handleClearDownloads(w http.ResponseWriter, r *http.Request) {
+	api.p2p.Downloader.ClearCompleted()
+	w.WriteHeader(200)
+}
+
+func (api *APIServer) handleClearUploads(w http.ResponseWriter, r *http.Request) {
+	api.p2p.Uploader.ClearCompleted()
 	w.WriteHeader(200)
 }
