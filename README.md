@@ -48,13 +48,13 @@ This command will:
 1. Build the frontend assets (`web/dist`).
 2. Build the Go client, embedding the frontend assets into the binary.
 3. Build the Go server.
-4. Place all binaries in the `build/` directory.
+4. Place all binaries in the `bin/` directory.
 
 ## Running the System
 
 ### 1. Start the Relay Server
 ```bash
-./build/server
+./bin/server
 # Listens on 0.0.0.0:8080 by default
 ```
 
@@ -63,12 +63,12 @@ Open two terminal windows and start two clients:
 
 **Client A:**
 ```bash
-./build/client -name Alice -api 8081 -udp 3001
+./bin/client -name Alice -api 8081 -udp 3001
 ```
 
 **Client B:**
 ```bash
-./build/client -name Bob -api 8082 -udp 3002
+./bin/client -name Bob -api 8082 -udp 3002
 ```
 
 ### 3. Use the Interface
